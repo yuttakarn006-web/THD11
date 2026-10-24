@@ -4,138 +4,194 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ESP32 Industrial Sensor Dashboard</title>
-    <!-- รีเฟรชหน้าเว็บอัตโนมัติทุกๆ 5 วินาที -->
     <meta http-equiv="refresh" content="5">
-    <!-- นำเข้าฟอนต์ Google Fonts: Prompt, Kanit, Sarabun, IBM Plex Sans Thai -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=Kanit:wght@300;400;500;600;700&family=Prompt:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <!-- นำเข้า Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
-            --bg-color: #0b0f19;
-            --card-bg: #111827;
-            --card-border: rgba(55, 65, 81, 0.6);
-            --text-main: #f3f4f6;
-            --text-muted: #9ca3af;
-            --accent-blue: #3b82f6;
-            --accent-cyan: #06b6d4;
-            --accent-green: #10b981;
-            --accent-orange: #f59e0b;
-            --accent-red: #ef4444;
-            /* เลือกใช้ฟอนต์หลักเป็น Prompt (สามารถเปลี่ยนเป็น 'Kanit', 'Sarabun', 'IBM Plex Sans Thai' ได้ตามต้องการ) */
-            --font-family: 'Prompt', 'Kanit', 'Sarabun', 'IBM Plex Sans Thai', sans-serif;
+            --bg-1: #07111f;
+            --bg-2: #0f172a;
+            --panel: rgba(15, 23, 42, 0.8);
+            --panel-strong: rgba(15, 23, 42, 0.96);
+            --card: rgba(17, 24, 39, 0.85);
+            --card-alt: rgba(15, 23, 42, 0.7);
+            --card-border: rgba(148, 163, 184, 0.18);
+            --text-main: #e5eefb;
+            --text-muted: #93a4bc;
+            --accent-blue: #60a5fa;
+            --accent-cyan: #22d3ee;
+            --accent-green: #34d399;
+            --accent-orange: #fbbf24;
+            --accent-red: #f87171;
+            --shadow: 0 18px 45px rgba(15, 23, 42, 0.38);
+            --radius-lg: 22px;
+            --radius-md: 16px;
+            --radius-sm: 12px;
+            --font-body: 'Prompt', 'Kanit', 'Sarabun', 'IBM Plex Sans Thai', sans-serif;
         }
 
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: var(--font-family);
+            font-family: var(--font-body);
+        }
+
+        html {
+            scroll-behavior: smooth;
         }
 
         body {
-            background-color: var(--bg-color);
-            color: var(--text-main);
             min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            padding: 24px;
+            background:
+                radial-gradient(circle at top left, rgba(96, 165, 250, 0.18), transparent 20%),
+                radial-gradient(circle at bottom right, rgba(34, 211, 238, 0.16), transparent 18%),
+                linear-gradient(135deg, var(--bg-1), var(--bg-2));
+            color: var(--text-main);
+            padding: 28px 24px 18px;
+        }
+
+        .page-shell {
+            max-width: 1200px;
+            margin: 0 auto;
         }
 
         .header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid var(--card-border);
-            padding-bottom: 20px;
-            margin-bottom: 30px;
+            gap: 20px;
+            padding: 8px 14px 18px;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+            margin-bottom: 26px;
         }
 
         .logo-area {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 14px;
         }
 
         .logo-icon {
-            width: 44px;
-            height: 44px;
-            background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
-            border-radius: 12px;
+            width: 52px;
+            height: 52px;
+            border-radius: 16px;
+            background: linear-gradient(135deg, rgba(96, 165, 250, 0.25), rgba(34, 211, 238, 0.35));
+            border: 1px solid rgba(148, 163, 184, 0.22);
             display: grid;
             place-items: center;
-            font-size: 20px;
-            color: #fff;
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+            font-size: 22px;
+            color: #d9ecff;
+            box-shadow: inset 0 0 20px rgba(255,255,255,0.06), 0 12px 30px rgba(14, 165, 233, 0.2);
+        }
+
+        .system-title {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
         }
 
         .system-title h1 {
-            font-size: 1.25rem;
+            font-size: clamp(1.2rem, 2vw, 1.75rem);
             font-weight: 600;
-            letter-spacing: -0.025em;
+            letter-spacing: -0.03em;
         }
 
         .system-title p {
-            font-size: 0.8rem;
             color: var(--text-muted);
+            font-size: 0.84rem;
             font-weight: 300;
         }
 
-        .status-badge {
+        .status-panel {
             display: flex;
             align-items: center;
-            gap: 8px;
-            background: rgba(16, 185, 129, 0.1);
-            border: 1px solid rgba(16, 185, 129, 0.3);
-            padding: 6px 14px;
+            gap: 10px;
+            padding: 9px 16px;
             border-radius: 999px;
-            font-size: 0.75rem;
-            font-weight: 500;
+            background: rgba(16, 185, 129, 0.10);
+            border: 1px solid rgba(52, 211, 153, 0.35);
             color: var(--accent-green);
+            box-shadow: 0 8px 26px rgba(16, 185, 129, 0.12);
         }
 
         .pulse-dot {
-            width: 8px;
-            height: 8px;
-            background-color: var(--accent-green);
+            width: 10px;
+            height: 10px;
             border-radius: 50%;
-            box-shadow: 0 0 8px var(--accent-green);
-            animation: pulse 2s infinite;
+            background: var(--accent-green);
+            box-shadow: 0 0 10px rgba(52, 211, 153, 0.95);
+            animation: pulse 1.8s infinite ease-in-out;
         }
 
         @keyframes pulse {
-            0% { transform: scale(0.95); opacity: 0.8; }
-            50% { transform: scale(1.2); opacity: 1; box-shadow: 0 0 12px var(--accent-green); }
-            100% { transform: scale(0.95); opacity: 0.8; }
+            0% { transform: scale(0.9); opacity: 0.7; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(0.9); opacity: 0.7; }
         }
 
         .main-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            width: 100%;
             display: flex;
             flex-direction: column;
             gap: 24px;
         }
 
+        .toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 14px;
+        }
+
+        .chip-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .info-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: rgba(15, 23, 42, 0.55);
+            border: 1px solid var(--card-border);
+            color: var(--text-muted);
+            font-size: 0.78rem;
+            font-weight: 300;
+        }
+
+        .info-pill strong {
+            color: var(--text-main);
+            font-weight: 500;
+        }
+
         .dashboard-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 18px;
         }
 
         .sensor-card {
-            background-color: var(--card-bg);
-            border: 1px solid var(--card-border);
-            border-radius: 16px;
-            padding: 24px;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
             position: relative;
+            background: linear-gradient(180deg, rgba(17,24,39,0.96), rgba(15,23,42,0.74));
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-lg);
+            padding: 22px 22px 18px;
+            box-shadow: var(--shadow);
             overflow: hidden;
+            transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .sensor-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(148, 163, 184, 0.28);
+            box-shadow: 0 20px 42px rgba(15, 23, 42, 0.44);
         }
 
         .sensor-card::before {
@@ -145,89 +201,127 @@
             left: 0;
             width: 100%;
             height: 4px;
+            background: linear-gradient(90deg, rgba(255,255,255,0.1), rgba(255,255,255,0.2));
         }
 
         .card-temp::before { background: linear-gradient(90deg, #f59e0b, #ef4444); }
-        .card-hum::before { background: linear-gradient(90deg, #3b82f6, #06b6d4); }
-        .card-chiptemp::before { background: linear-gradient(90deg, #10b981, #3b82f6); }
+        .card-hum::before { background: linear-gradient(90deg, #60a5fa, #22d3ee); }
+        .card-chiptemp::before { background: linear-gradient(90deg, #34d399, #3b82f6); }
 
         .card-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 16px;
+            margin-bottom: 20px;
         }
 
         .card-title {
-            font-size: 0.875rem;
+            font-size: 0.78rem;
             font-weight: 500;
-            color: var(--text-muted);
+            letter-spacing: 0.08em;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
+            color: var(--text-muted);
         }
 
         .card-icon {
-            width: 36px;
-            height: 36px;
-            border-radius: 10px;
+            width: 38px;
+            height: 38px;
+            border-radius: 12px;
             display: grid;
             place-items: center;
             font-size: 16px;
+            transition: transform 0.2s ease;
         }
 
-        .card-temp .card-icon { background: rgba(245, 158, 11, 0.15); color: var(--accent-orange); }
-        .card-hum .card-icon { background: rgba(59, 130, 246, 0.15); color: var(--accent-blue); }
-        .card-chiptemp .card-icon { background: rgba(16, 185, 129, 0.15); color: var(--accent-green); }
+        .sensor-card:hover .card-icon {
+            transform: scale(1.06);
+        }
+
+        .card-temp .card-icon { background: rgba(245, 158, 11, 0.12); color: var(--accent-orange); }
+        .card-hum .card-icon { background: rgba(96, 165, 250, 0.12); color: var(--accent-blue); }
+        .card-chiptemp .card-icon { background: rgba(52, 211, 153, 0.12); color: var(--accent-green); }
 
         .card-value {
-            font-size: 2.75rem;
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            font-size: clamp(2.15rem, 3vw, 3rem);
             font-weight: 700;
-            letter-spacing: -0.03em;
-            margin-bottom: 8px;
+            letter-spacing: -0.04em;
+            margin-bottom: 10px;
+            line-height: 1;
+        }
+
+        .card-value .unit {
+            font-size: 1.06rem;
+            color: var(--text-muted);
+            font-weight: 400;
         }
 
         .card-footer {
-            font-size: 0.75rem;
-            color: var(--text-muted);
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 8px;
+            font-size: 0.78rem;
+            color: var(--text-muted);
             font-weight: 300;
         }
 
         .chart-card {
-            background-color: var(--card-bg);
+            background: linear-gradient(180deg, rgba(17, 24, 39, 0.96), rgba(15, 23, 42, 0.74));
             border: 1px solid var(--card-border);
-            border-radius: 16px;
-            padding: 24px;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+            border-radius: var(--radius-lg);
+            padding: 20px 20px 18px;
+            box-shadow: var(--shadow);
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+
+        .chart-title {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.86rem;
+            color: var(--text-main);
+            letter-spacing: 0.02em;
+        }
+
+        .chart-title i {
+            color: var(--accent-blue);
         }
 
         .chart-container {
             position: relative;
-            height: 280px;
             width: 100%;
-            margin-top: 15px;
+            height: 300px;
+            margin-top: 18px;
         }
 
         .meta-container {
-            background-color: var(--card-bg);
-            border: 1px solid var(--card-border);
-            border-radius: 12px;
-            padding: 16px 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             flex-wrap: wrap;
-            gap: 12px;
-            font-size: 0.85rem;
-            color: var(--text-muted);
+            gap: 14px;
+            padding: 18px 20px;
+            border-radius: var(--radius-md);
+            background: rgba(15, 23, 42, 0.72);
+            border: 1px solid var(--card-border);
         }
 
         .meta-item {
             display: flex;
             align-items: center;
             gap: 8px;
+            color: var(--text-muted);
+            font-size: 0.82rem;
             font-weight: 300;
         }
 
@@ -236,31 +330,65 @@
             font-weight: 500;
         }
 
+        .meta-item i {
+            font-size: 0.9rem;
+        }
+
+        .meta-item:nth-child(1) i { color: var(--accent-blue); }
+        .meta-item:nth-child(2) i { color: var(--accent-cyan); }
+        .meta-item:nth-child(3) i { color: var(--accent-green); }
+
         .no-data-box {
-            grid-column: 1 / -1;
-            background-color: var(--card-bg);
+            background: rgba(15, 23, 42, 0.72);
             border: 1px dashed var(--card-border);
-            border-radius: 16px;
-            padding: 40px;
+            border-radius: var(--radius-lg);
+            padding: 40px 22px;
             text-align: center;
             color: var(--accent-red);
-            font-weight: 500;
+            box-shadow: var(--shadow);
+        }
+
+        .no-data-box i {
+            display: block;
+            font-size: 2.2rem;
+            margin-bottom: 10px;
         }
 
         footer {
             text-align: center;
-            font-size: 0.75rem;
             color: var(--text-muted);
-            margin-top: 30px;
-            border-top: 1px solid var(--card-border);
-            padding-top: 15px;
+            font-size: 0.74rem;
+            border-top: 1px solid rgba(148, 163, 184, 0.18);
+            padding-top: 16px;
+            margin-top: 28px;
             font-weight: 300;
+        }
+
+        @media (max-width: 640px) {
+            body {
+                padding-left: 14px;
+                padding-right: 14px;
+            }
+
+            .header {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .status-panel {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .meta-container {
+                flex-direction: column;
+                align-items: flex-start;
+            }
         }
     </style>
 </head>
 <body>
-
-    <div>
+    <div class="page-shell">
         <header class="header">
             <div class="logo-area">
                 <div class="logo-icon">
@@ -268,53 +396,67 @@
                 </div>
                 <div class="system-title">
                     <h1>ESP32 IoT Sensor Telemetry</h1>
-                    <p>Real-time UDP Stream Monitor & History</p>
+                    <p>Real-time UDP Stream Monitor &amp; History</p>
                 </div>
             </div>
-            <div class="status-badge">
+
+            <div class="status-panel">
                 <div class="pulse-dot"></div>
-                Live Connection
+                <span>Live Connection</span>
             </div>
         </header>
 
         <main class="main-container">
             {% if data %}
+                <div class="toolbar">
+                    <div class="chip-group">
+                        <div class="info-pill"><i class="fa-solid fa-signal" style="color: var(--accent-green);"></i> <span>Sensor status: <strong>Stable</strong></span></div>
+                        <div class="info-pill"><i class="fa-solid fa-wifi" style="color: var(--accent-cyan);"></i> <span>Network: <strong>Connected</strong></span></div>
+                    </div>
+                    <div class="info-pill"><i class="fa-solid fa-database" style="color: var(--accent-blue);"></i> <span>Data source: <strong>CSV Logger</strong></span></div>
+                </div>
+
                 <div class="dashboard-grid">
-                    <!-- อุณหภูมิ DHT11 -->
                     <div class="sensor-card card-temp">
                         <div class="card-header">
                             <span class="card-title">อุณหภูมิ (DHT11)</span>
                             <div class="card-icon"><i class="fa-solid fa-temperature-high"></i></div>
                         </div>
-                        <div class="card-value">{{ data.Temperature_C }} <span style="font-size: 1.5rem; font-weight: 400;">°C</span></div>
+                        <div class="card-value">
+                            <span>{{ data.Temperature_C }}</span>
+                            <span class="unit">°C</span>
+                        </div>
                         <div class="card-footer"><i class="fa-solid fa-circle-info"></i> สภาวะแวดล้อมทั่วไป</div>
                     </div>
 
-                    <!-- ความชื้น -->
                     <div class="sensor-card card-hum">
                         <div class="card-header">
                             <span class="card-title">ความชื้นสัมพัทธ์</span>
                             <div class="card-icon"><i class="fa-solid fa-droplet"></i></div>
                         </div>
-                        <div class="card-value">{{ data.Humidity_Percent }} <span style="font-size: 1.5rem; font-weight: 400;">%</span></div>
+                        <div class="card-value">
+                            <span>{{ data.Humidity_Percent }}</span>
+                            <span class="unit">%</span>
+                        </div>
                         <div class="card-footer"><i class="fa-solid fa-circle-info"></i> ปริมาณไอน้ำในอากาศ</div>
                     </div>
 
-                    <!-- อุณหภูมิชิป ESP32 -->
                     <div class="sensor-card card-chiptemp">
                         <div class="card-header">
                             <span class="card-title">อุณหภูมิชิป ESP32</span>
                             <div class="card-icon"><i class="fa-solid fa-microchip"></i></div>
                         </div>
-                        <div class="card-value">{{ data.ESP32_Chip_Temp_C }} <span style="font-size: 1.5rem; font-weight: 400;">°C</span></div>
+                        <div class="card-value">
+                            <span>{{ data.ESP32_Chip_Temp_C }}</span>
+                            <span class="unit">°C</span>
+                        </div>
                         <div class="card-footer"><i class="fa-solid fa-circle-info"></i> ความร้อนภายในชิป</div>
                     </div>
                 </div>
 
-                <!-- กราฟเส้นแสดงประวัติย้อนหลัง -->
                 <div class="chart-card">
-                    <div class="card-header" style="margin-bottom: 0;">
-                        <span class="card-title"><i class="fa-solid fa-chart-line" style="color: var(--accent-blue);"></i> Temperature & Humidity Trend (Live Stream)</span>
+                    <div class="chart-header">
+                        <span class="chart-title"><i class="fa-solid fa-chart-line"></i> Temperature &amp; Humidity Trend (Live Stream)</span>
                     </div>
                     <div class="chart-container">
                         <canvas id="sensorChart"></canvas>
@@ -323,23 +465,23 @@
 
                 <div class="meta-container">
                     <div class="meta-item">
-                        <i class="fa-solid fa-clock" style="color: var(--accent-blue);"></i>
+                        <i class="fa-solid fa-clock"></i>
                         อัปเดตล่าสุด: <strong>{{ data.Timestamp }}</strong>
                     </div>
                     <div class="meta-item">
-                        <i class="fa-solid fa-network-wired" style="color: var(--accent-cyan);"></i>
+                        <i class="fa-solid fa-network-wired"></i>
                         ESP32 IP Address: <strong>{{ data.IP_Address }}</strong>
                     </div>
                     <div class="meta-item">
-                        <i class="fa-solid fa-file-csv" style="color: var(--accent-green);"></i>
+                        <i class="fa-solid fa-file-csv"></i>
                         Source: <strong>CSV Logger</strong>
                     </div>
                 </div>
             {% else %}
                 <div class="dashboard-grid">
                     <div class="no-data-box">
-                        <i class="fa-solid fa-triangle-exclamation" style="font-size: 2rem; margin-bottom: 10px; display: block;"></i>
-                        ยังไม่พบข้อมูลเซนเซอร์ กรุณารันสคริปต์รับข้อมูล UDP เพื่อบันทึกไฟล์ CSV
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        ยังไม่พบข้อมูลเซนเซอร์ กรุณารันสคริปต์รับข้อมูล UDP เพื่อบันทึกและแสดงผลบนแดชบอร์ด
                     </div>
                 </div>
             {% endif %}
@@ -347,7 +489,7 @@
     </div>
 
     <footer>
-        TYGA IoT & Embedded Systems Solutions &copy; 2026 | Auto-refresh every 5 seconds
+        TYGA IoT &amp; Embedded Systems Solutions &copy; 2026 | Auto-refresh every 5 seconds
     </footer>
 
     {% if data %}
@@ -391,30 +533,36 @@
                         label: 'DHT11 Temp (°C)',
                         data: historyTemp,
                         borderColor: '#f59e0b',
-                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                        borderWidth: 2,
-                        tension: 0.3,
+                        backgroundColor: 'rgba(245, 158, 11, 0.11)',
+                        borderWidth: 2.5,
+                        tension: 0.35,
                         fill: true,
+                        pointRadius: 2,
+                        pointHoverRadius: 5,
                         yAxisID: 'y'
                     },
                     {
                         label: 'Humidity (%)',
                         data: historyHum,
-                        borderColor: '#3b82f6',
-                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                        borderWidth: 2,
-                        tension: 0.3,
+                        borderColor: '#60a5fa',
+                        backgroundColor: 'rgba(96, 165, 250, 0.09)',
+                        borderWidth: 2.5,
+                        tension: 0.35,
                         fill: true,
+                        pointRadius: 2,
+                        pointHoverRadius: 5,
                         yAxisID: 'y1'
                     },
                     {
                         label: 'ESP32 Chip Temp (°C)',
                         data: historyChip,
-                        borderColor: '#10b981',
+                        borderColor: '#34d399',
                         backgroundColor: 'transparent',
                         borderWidth: 2,
-                        borderDash: [5, 5],
-                        tension: 0.3,
+                        borderDash: [6, 6],
+                        tension: 0.35,
+                        pointRadius: 2,
+                        pointHoverRadius: 5,
                         yAxisID: 'y'
                     }
                 ]
@@ -422,29 +570,47 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
                 plugins: {
                     legend: {
-                        labels: { color: '#9ca3af', font: { family: 'Prompt', size: 12 } }
+                        labels: {
+                            color: '#dfeaf9',
+                            font: { family: 'Prompt', size: 12 },
+                            boxWidth: 12,
+                            usePointStyle: true,
+                            pointStyle: 'circle'
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(15, 23, 42, 0.96)',
+                        borderColor: 'rgba(148, 163, 184, 0.3)',
+                        borderWidth: 1,
+                        titleColor: '#edf6ff',
+                        bodyColor: '#dfeaf9',
+                        padding: 10
                     }
                 },
                 scales: {
                     x: {
-                        grid: { color: 'rgba(55, 65, 81, 0.3)' },
-                        ticks: { color: '#9ca3af', font: { family: 'Prompt' } }
+                        grid: { color: 'rgba(148, 163, 184, 0.12)' },
+                        ticks: { color: '#9db0c6', font: { family: 'Prompt', size: 11 } }
                     },
                     y: {
                         type: 'linear',
                         position: 'left',
-                        grid: { color: 'rgba(55, 65, 81, 0.3)' },
-                        ticks: { color: '#f59e0b', font: { family: 'Prompt' } },
-                        title: { display: true, text: 'Temperature (°C)', color: '#f59e0b', font: { family: 'Prompt' } }
+                        grid: { color: 'rgba(148, 163, 184, 0.12)' },
+                        ticks: { color: '#fbbf24', font: { family: 'Prompt', size: 11 } },
+                        title: { display: true, text: 'Temperature (°C)', color: '#fbbf24', font: { family: 'Prompt', size: 12 } }
                     },
                     y1: {
                         type: 'linear',
                         position: 'right',
                         grid: { display: false },
-                        ticks: { color: '#3b82f6', font: { family: 'Prompt' } },
-                        title: { display: true, text: 'Humidity (%)', color: '#3b82f6', font: { family: 'Prompt' } },
+                        ticks: { color: '#60a5fa', font: { family: 'Prompt', size: 11 } },
+                        title: { display: true, text: 'Humidity (%)', color: '#60a5fa', font: { family: 'Prompt', size: 12 } },
                         min: 0,
                         max: 100
                     }
@@ -453,6 +619,5 @@
         });
     </script>
     {% endif %}
-
 </body>
 </html>
