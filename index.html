@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 Industrial Sensor Dashboard</title>
+    <!-- รีเฟรชหน้าเว็บอัตโนมัติทุกๆ 5 วินาที -->
+    <meta http-equiv="refresh" content="5">
+    <!-- นำเข้าฟอนต์ Google Fonts: Prompt, Kanit, Sarabun, IBM Plex Sans Thai -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=Kanit:wght@300;400;500;600;700&family=Prompt:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- นำเข้า Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: #111827;
+            --card-border: rgba(55, 65, 81, 0.6);
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --accent-blue: #3b82f6;
+            --accent-cyan: #06b6d4;
+            --accent-green: #10b981;
+            --accent-orange: #f59e0b;
+            --accent-red: #ef4444;
+            /* เลือกใช้ฟอนต์หลักเป็น Prompt (สามารถเปลี่ยนเป็น 'Kanit', 'Sarabun', 'IBM Plex Sans Thai' ได้ตามต้องการ) */
+            --font-family: 'Prompt', 'Kanit', 'Sarabun', 'IBM Plex Sans Thai', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: var(--font-family);
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 24px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+            border-radius: 12px;
+            display: grid;
+            place-items: center;
+            font-size: 20px;
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .system-title h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            letter-spacing: -0.025em;
+        }
+
+        .system-title p {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            font-weight: 300;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            padding: 6px 14px;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--accent-green);
+        }
+
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--accent-green);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--accent-green);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            50% { transform: scale(1.2); opacity: 1; box-shadow: 0 0 12px var(--accent-green); }
+            100% { transform: scale(0.95); opacity: 0.8; }
+        }
+
+        .main-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .sensor-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .sensor-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+        }
+
+        .card-temp::before { background: linear-gradient(90deg, #f59e0b, #ef4444); }
+        .card-hum::before { background: linear-gradient(90deg, #3b82f6, #06b6d4); }
+        .card-chiptemp::before { background: linear-gradient(90deg, #10b981, #3b82f6); }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .card-title {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .card-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: grid;
+            place-items: center;
+            font-size: 16px;
+        }
+
+        .card-temp .card-icon { background: rgba(245, 158, 11, 0.15); color: var(--accent-orange); }
+        .card-hum .card-icon { background: rgba(59, 130, 246, 0.15); color: var(--accent-blue); }
+        .card-chiptemp .card-icon { background: rgba(16, 185, 129, 0.15); color: var(--accent-green); }
+
+        .card-value {
+            font-size: 2.75rem;
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            margin-bottom: 8px;
+        }
+
+        .card-footer {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 300;
+        }
+
+        .chart-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+
+        .chart-container {
+            position: relative;
+            height: 280px;
+            width: 100%;
+            margin-top: 15px;
+        }
+
+        .meta-container {
+            background-color: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 300;
+        }
+
+        .meta-item strong {
+            color: var(--text-main);
+            font-weight: 500;
+        }
+
+        .no-data-box {
+            grid-column: 1 / -1;
+            background-color: var(--card-bg);
+            border: 1px dashed var(--card-border);
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+            color: var(--accent-red);
+            font-weight: 500;
+        }
+
+        footer {
+            text-align: center;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 30px;
+            border-top: 1px solid var(--card-border);
+            padding-top: 15px;
+            font-weight: 300;
+        }
+    </style>
+</head>
+<body>
+
+    <div>
+        <header class="header">
+            <div class="logo-area">
+                <div class="logo-icon">
+                    <i class="fa-solid fa-microchip"></i>
+                </div>
+                <div class="system-title">
+                    <h1>ESP32 IoT Sensor Telemetry</h1>
+                    <p>Real-time UDP Stream Monitor & History</p>
+                </div>
+            </div>
+            <div class="status-badge">
+                <div class="pulse-dot"></div>
+                Live Connection
+            </div>
+        </header>
+
+        <main class="main-container">
+            {% if data %}
+                <div class="dashboard-grid">
+                    <!-- อุณหภูมิ DHT11 -->
+                    <div class="sensor-card card-temp">
+                        <div class="card-header">
+                            <span class="card-title">อุณหภูมิ (DHT11)</span>
+                            <div class="card-icon"><i class="fa-solid fa-temperature-high"></i></div>
+                        </div>
+                        <div class="card-value">{{ data.Temperature_C }} <span style="font-size: 1.5rem; font-weight: 400;">°C</span></div>
+                        <div class="card-footer"><i class="fa-solid fa-circle-info"></i> สภาวะแวดล้อมทั่วไป</div>
+                    </div>
+
+                    <!-- ความชื้น -->
+                    <div class="sensor-card card-hum">
+                        <div class="card-header">
+                            <span class="card-title">ความชื้นสัมพัทธ์</span>
+                            <div class="card-icon"><i class="fa-solid fa-droplet"></i></div>
+                        </div>
+                        <div class="card-value">{{ data.Humidity_Percent }} <span style="font-size: 1.5rem; font-weight: 400;">%</span></div>
+                        <div class="card-footer"><i class="fa-solid fa-circle-info"></i> ปริมาณไอน้ำในอากาศ</div>
+                    </div>
+
+                    <!-- อุณหภูมิชิป ESP32 -->
+                    <div class="sensor-card card-chiptemp">
+                        <div class="card-header">
+                            <span class="card-title">อุณหภูมิชิป ESP32</span>
+                            <div class="card-icon"><i class="fa-solid fa-microchip"></i></div>
+                        </div>
+                        <div class="card-value">{{ data.ESP32_Chip_Temp_C }} <span style="font-size: 1.5rem; font-weight: 400;">°C</span></div>
+                        <div class="card-footer"><i class="fa-solid fa-circle-info"></i> ความร้อนภายในชิป</div>
+                    </div>
+                </div>
+
+                <!-- กราฟเส้นแสดงประวัติย้อนหลัง -->
+                <div class="chart-card">
+                    <div class="card-header" style="margin-bottom: 0;">
+                        <span class="card-title"><i class="fa-solid fa-chart-line" style="color: var(--accent-blue);"></i> Temperature & Humidity Trend (Live Stream)</span>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="sensorChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="meta-container">
+                    <div class="meta-item">
+                        <i class="fa-solid fa-clock" style="color: var(--accent-blue);"></i>
+                        อัปเดตล่าสุด: <strong>{{ data.Timestamp }}</strong>
+                    </div>
+                    <div class="meta-item">
+                        <i class="fa-solid fa-network-wired" style="color: var(--accent-cyan);"></i>
+                        ESP32 IP Address: <strong>{{ data.IP_Address }}</strong>
+                    </div>
+                    <div class="meta-item">
+                        <i class="fa-solid fa-file-csv" style="color: var(--accent-green);"></i>
+                        Source: <strong>CSV Logger</strong>
+                    </div>
+                </div>
+            {% else %}
+                <div class="dashboard-grid">
+                    <div class="no-data-box">
+                        <i class="fa-solid fa-triangle-exclamation" style="font-size: 2rem; margin-bottom: 10px; display: block;"></i>
+                        ยังไม่พบข้อมูลเซนเซอร์ กรุณารันสคริปต์รับข้อมูล UDP เพื่อบันทึกไฟล์ CSV
+                    </div>
+                </div>
+            {% endif %}
+        </main>
+    </div>
+
+    <footer>
+        TYGA IoT & Embedded Systems Solutions &copy; 2026 | Auto-refresh every 5 seconds
+    </footer>
+
+    {% if data %}
+    <script>
+        const currentTemp = parseFloat("{{ data.Temperature_C }}");
+        const currentHum = parseFloat("{{ data.Humidity_Percent }}");
+        const currentChipTemp = parseFloat("{{ data.ESP32_Chip_Temp_C }}");
+        const currentTime = "{{ data.Timestamp }}".split(" ")[1];
+
+        let historyLabels = JSON.parse(localStorage.getItem('sensor_labels') || '[]');
+        let historyTemp = JSON.parse(localStorage.getItem('sensor_temp') || '[]');
+        let historyHum = JSON.parse(localStorage.getItem('sensor_hum') || '[]');
+        let historyChip = JSON.parse(localStorage.getItem('sensor_chip') || '[]');
+
+        if (historyLabels[historyLabels.length - 1] !== currentTime) {
+            historyLabels.push(currentTime);
+            historyTemp.push(currentTemp);
+            historyHum.push(currentHum);
+            historyChip.push(currentChipTemp);
+
+            if (historyLabels.length > 15) {
+                historyLabels.shift();
+                historyTemp.shift();
+                historyHum.shift();
+                historyChip.shift();
+            }
+
+            localStorage.setItem('sensor_labels', JSON.stringify(historyLabels));
+            localStorage.setItem('sensor_temp', JSON.stringify(historyTemp));
+            localStorage.setItem('sensor_hum', JSON.stringify(historyHum));
+            localStorage.setItem('sensor_chip', JSON.stringify(historyChip));
+        }
+
+        const ctx = document.getElementById('sensorChart').getContext('2d');
+        const sensorChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: historyLabels,
+                datasets: [
+                    {
+                        label: 'DHT11 Temp (°C)',
+                        data: historyTemp,
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        fill: true,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Humidity (%)',
+                        data: historyHum,
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        fill: true,
+                        yAxisID: 'y1'
+                    },
+                    {
+                        label: 'ESP32 Chip Temp (°C)',
+                        data: historyChip,
+                        borderColor: '#10b981',
+                        backgroundColor: 'transparent',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        tension: 0.3,
+                        yAxisID: 'y'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        labels: { color: '#9ca3af', font: { family: 'Prompt', size: 12 } }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { color: 'rgba(55, 65, 81, 0.3)' },
+                        ticks: { color: '#9ca3af', font: { family: 'Prompt' } }
+                    },
+                    y: {
+                        type: 'linear',
+                        position: 'left',
+                        grid: { color: 'rgba(55, 65, 81, 0.3)' },
+                        ticks: { color: '#f59e0b', font: { family: 'Prompt' } },
+                        title: { display: true, text: 'Temperature (°C)', color: '#f59e0b', font: { family: 'Prompt' } }
+                    },
+                    y1: {
+                        type: 'linear',
+                        position: 'right',
+                        grid: { display: false },
+                        ticks: { color: '#3b82f6', font: { family: 'Prompt' } },
+                        title: { display: true, text: 'Humidity (%)', color: '#3b82f6', font: { family: 'Prompt' } },
+                        min: 0,
+                        max: 100
+                    }
+                }
+            }
+        });
+    </script>
+    {% endif %}
+
+</body>
+</html>
